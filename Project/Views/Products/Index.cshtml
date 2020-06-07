@@ -1,0 +1,231 @@
+﻿@model PagedList<ProductViewModel>
+
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+<h1>Products</h1>
+@if (User.Identity.IsAuthenticated && User.IsInRole("Seller"))
+{
+    <div class="row">
+        <div class="col-md-5">
+            <a id="add" href="#"><div class="btn btn-success" data-toggle="modal" data-target="#exampleModalCenter">Add</div></a>
+        </div>
+    </div>
+}
+<section>
+    @Html.PagedListPager(Model, page => Url.Action("Index", new { page }), new PagedListRenderOptions()
+{
+    DisplayItemSliceAndTotal = true,
+    ContainerDivClasses = new[] { "navigation" },
+    LiElementClasses = new[] { "page-item" },
+    PageClasses = new[] { "page-link" }
+})
+    <table class="table table-striped" id="bodyContent">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">ProductName</th>
+                <th scope="col">Description</th>
+
+                @if (User.Identity.IsAuthenticated && User.IsInRole("Seller"))
+                {
+                    <th scope="col">Quantity</th>
+                }
+                <th scope="col">ProductPrice</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                int count = 1;
+            }
+            @foreach (var product in Model)
+            {
+                <tr id="@product.Id">
+                    <th scope="row">@count</th>
+                    <td id="tdProductName">@product.ProductName</td>
+                    <td id="tdDescription">@product.Description</td>
+                    @if (User.Identity.IsAuthenticated && User.IsInRole("Seller"))
+                    {
+                        <td id="tdQuantity">@product.CurrentQuantity.ToString()</td>
+                    }
+                    <td id="tdProductPrice">@product.ProductPrice.ToString()</td>
+                    @if (User.Identity.IsAuthenticated && User.IsInRole("Seller"))
+                    {
+
+                        <td>
+                            <a id="edit" href="#" data-id="@product.Id"><div class="btn btn-warning">Edit</div></a>
+                            <a id="delete" href="#" data-id="@product.Id"><div class="btn btn-danger">Delete</div></a>
+                        </td>
+                    }
+                    <td>
+                        <form asp-action="GetProductInfo" asp-controller="Products">
+                            <button class="btn btn-info" type="submit" name="id" value="@product.Id">Info</button>
+                        </form>
+
+                    </td>
+                </tr>
+
+                count++;
+            }
+
+
+        </tbody>
+    </table>
+</section>
+<div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLongTitle">Product form</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addForm">
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="productId" name="Id" hidden>
+                    </div>
+                    <div class="form-group">
+                        <label for="productName">Product name</label>
+                        <input type="text" class="form-control" id="productName" name="ProductName" aria-describedby="productName" placeholder="Enter product name">
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <input type="text" class="form-control" id="description" name="Description" placeholder="Description">
+                    </div>
+                    <div id="mQty" class="form-group">
+                        <label for="quantity">Quantity</label>
+                        <input type="number" class="form-control" id="quantity" name="CurrentQuantity" placeholder="Quantity">
+                    </div>
+                    <div id="mPrc" class="form-group">
+                        <label for="price">Price</label>
+                        <input type="number" min="1" step="any" class="form-control" id="mdprice" name="ProductPrice" placeholder="Price">
+                    </div>
+                    <div id="pictures" class="form-group">
+                        <label for="pictures">Pictures</label>
+                        <input type="image" class="form-control" id="mdImages" name="Images" placeholder="Images">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button id="addSubmit" type="submit" class="btn btn-primary">Submit</button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+@section Scripts{
+    <script>
+
+       $(document).on('click','#addSubmit', function (e) {
+                e.preventDefault();
+                 $.ajax({
+                     method: "post",
+                     dataType: "json",
+                url: "/products/add",
+                data: $("#addForm").serialize() ,
+                     success: function (res) {
+                         var data = JSON.parse(res);
+
+                         @{ count++;}
+                          var row='<tr>'+
+                    '<th scope="row">'+ @count +'</th>'+
+                    '<td>'+ data.ProductName +'</td>'+
+                              '<td>' + data.Description + '</td>' +
+                              '<td>'+ data.CurrentQuantity + '</td>'+
+                    '<td>'+ data.ProductPrice+ '</td>'+
+
+                        '<td>'+
+                            '<a id="edit" href="#" data-id="'+data.Id+'"><div class="btn btn-info">Edit</div></a>'+
+                            '<a id="delete" href="#" data-id="'+ data.Id+'"><div class="btn btn-danger">Delete</div></a>'+
+                              '</td>' +
+                        '</tr>';
+                         $("#bodyContent tbody").append(row);
+                         $("#exampleModalCenter").modal('hide');
+                }
+            });
+
+        });
+
+    </script>
+
+    <script>
+    $("body").on('click', "#edit", function () {
+        var row = $(this).closest("tr");
+        var id = row.attr('id');
+
+
+        $('.modal-body #productId').val(id);
+        $('.modal-body #productName').val(row.find("#tdProductName").text());
+        $('.modal-body #description').val(row.find("#tdDescription").text());
+        $('.modal-body #mdprice').val(row.find("#tdProductPrice").text());
+        $('.modal-body #quantity').val(row.find("#tdQuantity").text());
+
+
+        $("#exampleModalCenter").modal('show');
+        $(".modal-body #addForm").prop('id',"editForm");
+
+         $(".modal-body #addSubmit").prop('id',"editSubmit");
+
+    });
+        $(document).on('click','#editSubmit', function (e) {
+                e.preventDefault();
+                 $.ajax({
+                     method: "put",
+                     dataType: "json",
+                url: "/products/edit",
+                data: $("#editForm").serialize() ,
+                     success: function (res) {
+                         var data = JSON.parse(res);
+
+                          var editRow='<tr id="'+ data.Id +'">'+
+                    '<th scope="row">'+ @count +'</th>'+
+                    '<td>'+ data.ProductName +'</td>'+
+                              '<td>' + data.Description + '</td>' +
+                              '<td>'+ data.CurrentQuantity+ '</td>'+
+                    '<td>'+ data.ProductPrice+ '</td>'+
+
+                        '<td>'+
+                            '<a id="edit" href="#" data-id="'+data.Id+'"><div class="btn btn-info">Edit</div></a>'+
+                            '<a id="delete" href="#" data-id="'+ data.Id+'"><div class="btn btn-danger">Delete</div></a>'+
+                              '</td>' +
+                             '</tr>';
+                        //todo change row
+
+                         $("#exampleModalCenter").modal('hide');
+
+                         $('#exampleModalCenter').on('hidden.bs.modal', function () {
+                             $(":input").val('');
+                             $(".modal-body #editSubmit").prop('id', "addSubmit");
+                         });
+                     },
+                     error: function (data) {
+
+                         alert("Invalid data")
+                     }
+
+                 });
+
+        });
+
+    </script>
+    <script>
+    $("body").on("click", "#delete", function () {
+        var getId = $(this).attr("data-id");
+        $.ajax({
+            method: "post",
+            url: "/products/delete",
+            data: { id: getId },
+            success: function (status) {
+                alert(status);
+            }
+        });
+    });
+    </script>
+}
+
